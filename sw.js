@@ -1,8 +1,8 @@
 /* Monitor Didi: guarda a "casca" do app para abrir rápido e mostrar o aviso de sem internet.
    Nunca guarda nem intercepta nada do Google: o painel e os dados vêm sempre ao vivo. */
-const CACHE = 'monitor-didi-v1';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png',
-               './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'];
+const CACHE = 'monitor-didi-v2';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png',
+               './maskable-512.png', './apple-touch-icon.png', './favicon-32.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
