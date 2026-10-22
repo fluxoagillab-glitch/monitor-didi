@@ -92,16 +92,30 @@ input { width: 100%; font: inherit; font-size: 15px; padding: 12px 13px; border-
   <div class="card">
     <img class="logo" src="icon-192.png" alt="" style="width:56px;height:56px;border-radius:14px">
     <h1>Monitor Didi</h1>
-    <p>Cole o link do seu painel: o endereço do Google que termina em <b>/exec</b>, o mesmo que você abre no navegador.</p>
+    <p>Cole o <b>link do painel</b>: o endereço do Google que termina em <b>/exec</b> (na planilha: menu <b>Monitor Didi &gt; Link do painel</b>).</p>
     <label for="url">Link do painel</label>
     <input id="url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
            placeholder="https://script.google.com/macros/s/…/exec">
     <div class="err" id="err" role="alert"></div>
     <div class="btns" style="margin-top:6px">
-      <button class="btn primary" id="save" type="button">Salvar e abrir</button>
+      <button class="btn primary" id="save" type="button">Salvar e continuar</button>
       <button class="btn" id="cancel" type="button" hidden>Cancelar</button>
     </div>
-    <p class="hint">O link fica guardado só neste aparelho. Mesmo que alguém o veja, o Google só abre o painel para a sua conta.</p>
+    <p class="hint">Só o link não abre o painel: depois você entra com uma conta Google liberada em Ajustes &gt; Acessos.</p>
+  </div>
+  <div class="install" data-install hidden></div>
+</div>
+
+<div class="screen" id="login" hidden>
+  <div class="card" style="text-align:center">
+    <img class="logo" src="icon-192.png" alt="" style="width:56px;height:56px;border-radius:14px;margin:0 auto">
+    <h1>Monitor Didi</h1>
+    <p>Entre com a sua conta Google. Só as contas liberadas no painel (Ajustes &gt; Acessos) entram.</p>
+    <div id="gbtn" style="display:flex;justify-content:center;min-height:46px;margin-top:10px"></div>
+    <div class="err" id="login-err" role="alert"></div>
+    <p class="hint" id="login-hint" style="margin-top:6px"></p>
+    <div class="btns" id="login-retry-box" hidden><button class="btn" id="login-retry" type="button">Tentar de novo</button></div>
+    <button class="linkbtn" id="change3" type="button">Trocar o link do painel</button>
   </div>
   <div class="install" data-install hidden></div>
 </div>
@@ -109,10 +123,10 @@ input { width: 100%; font: inherit; font-size: 15px; padding: 12px 13px; border-
 <div class="screen" id="direct" hidden>
   <img class="logo" src="icon-192.png" alt="">
   <div class="brand">Monitor Didi</div>
-  <p class="muted" style="text-align:center;max-width:380px;margin:4px 0 0">Neste aparelho o painel abre pelo navegador, com a sua conta Google, porque da última vez ele não abriu aqui dentro.</p>
+  <p class="muted" style="text-align:center;max-width:380px;margin:4px 0 0">Neste aparelho o painel abre pelo navegador, porque da última vez ele não abriu aqui dentro.</p>
   <div class="btns" style="width:100%;max-width:380px"><button class="btn primary" id="go" type="button">Abrir o painel</button></div>
   <button class="linkbtn" id="try-embed" type="button">Tentar abrir dentro do app</button>
-  <button class="linkbtn" id="change2" type="button">Trocar o link do painel</button>
+  <button class="linkbtn" id="logout2" type="button">Sair deste aparelho</button>
   <div class="install" data-install hidden></div>
 </div>
 
@@ -127,23 +141,22 @@ input { width: 100%; font: inherit; font-size: 15px; padding: 12px 13px; border-
   <h2>O painel não abriu aqui dentro</h2>
   <p>As causas mais comuns:</p>
   <ul style="margin:6px 0 0;padding-left:18px;font-size:14px;color:var(--ink-2)">
-    <li>O Apps Script ainda está na versão antiga: troque o <b>WebApp.gs</b> e o <b>Index.html</b> e faça <b>Implantar &gt; Gerenciar implantações &gt; Nova versão</b>.</li>
-    <li>Há mais de uma conta Google neste navegador: a dona do painel precisa ser a conta principal (a primeira da lista).</li>
-    <li>O Google pediu o login de novo, ou é um iPhone, que bloqueia esse tipo de acesso.</li>
+    <li>O Apps Script ainda está na versão antiga: troque os arquivos e faça <b>Implantar &gt; Gerenciar implantações &gt; Nova versão</b>.</li>
+    <li>A implantação precisa estar com <b>Quem pode acessar: Qualquer pessoa</b>.</li>
+    <li>A internet caiu no meio do caminho.</li>
   </ul>
-  <p style="margin-top:6px">Pelo navegador funciona sempre.</p>
   <div class="btns">
-    <button class="btn primary" id="open-direct" type="button">Abrir no navegador</button>
-    <button class="btn" id="retry" type="button">Tentar de novo</button>
+    <button class="btn primary" id="retry" type="button">Tentar de novo</button>
+    <button class="btn" id="open-direct" type="button">Abrir no navegador</button>
   </div>
-  <button class="linkbtn" id="change" type="button">Trocar o link do painel</button>
+  <button class="linkbtn" id="logout" type="button">Sair e entrar de novo</button>
   <button class="linkbtn" id="dismiss" type="button" style="float:right">Fechar aviso</button>
 </div>
 
 <script>
 'use strict';
-const URL_KEY = 'didi:url', MODE_KEY = 'didi:mode';
-const FORWARD = ['acao', 'ativo', 'preco', 'stop'];      // pedidos do alerta (Comprei / Vendi / Manter) seguem para o painel
+const URL_KEY = 'didi:url', MODE_KEY = 'didi:mode', SES_KEY = 'didi:sessao', EMAIL_KEY = 'didi:email';
+const FORWARD = ['acao', 'ativo', 'preco', 'stop'];      // pedidos (Comprei / Vendi / Manter) seguem para o painel
 const RX = /^https:\/\/script\.google\.com\/(?:a\/macros\/[^/?#]+|macros)\/s\/[A-Za-z0-9_-]{20,}\/exec$/;
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -152,18 +165,25 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } },
   del(k) { try { localStorage.removeItem(k); } catch (e) {} }
 };
+['didi:conta', 'didi:chave'].forEach(k => store.del(k));    // sobras de versões anteriores (conta /u/N e chave)
 const WAIT_MS = Number(store.get('didi:wait')) || 20000;   // tempo para o painel avisar que abriu
-const SCREENS = ['splash', 'setup', 'direct', 'offline'];
+const SCREENS = ['splash', 'setup', 'login', 'direct', 'offline'];
 function show(id) { SCREENS.forEach(s => { $(s).hidden = s !== id; }); }
 
 /** Link limpo do painel (sem parâmetros) ou '' se não for um link /exec do Apps Script. */
 function cleanUrl(text) {
   const m = String(text || '').trim().match(/https:\/\/script\.google\.com\/[^\s"'<>]+/);   // aceita o link no meio de um texto colado
   if (!m) return '';
-  try { const u = new URL(m[0]); const s = u.origin + u.pathname.replace(/\/+$/, ''); return RX.test(s) ? s : ''; } catch (e) { return ''; }
+  try {
+    const u = new URL(m[0]);
+    const s = u.origin + u.pathname.replace(/\/+$/, '').replace(/\/macros\/u\/\d\/s\//, '/macros/s/');
+    return RX.test(s) ? s : '';
+  } catch (e) { return ''; }
 }
 function target(base, inside) {
   const q = new URLSearchParams();
+  const ses = store.get(SES_KEY);
+  if (ses) q.set('s', ses);
   if (inside) q.set('app', '1');
   FORWARD.forEach(k => { if (params.has(k)) q.set(k, params.get(k)); });
   const qs = q.toString();
@@ -184,6 +204,7 @@ function saveUrl() {
       : 'Esse não parece o link do painel. Ele começa com https://script.google.com/ e termina em /exec.';
     $('url').focus(); return;
   }
+  if (u !== store.get(URL_KEY)) store.del(SES_KEY);     // outro painel: entra de novo
   store.set(URL_KEY, u); store.del(MODE_KEY);
   if (params.has('config')) history.replaceState(null, '', location.pathname);
   params.delete('config');
@@ -192,7 +213,64 @@ function saveUrl() {
 $('save').addEventListener('click', saveUrl);
 $('url').addEventListener('keydown', e => { if (e.key === 'Enter') saveUrl(); });
 $('cancel').addEventListener('click', () => { params.delete('config'); history.replaceState(null, '', location.pathname); start(); });
-['change', 'change2'].forEach(id => $(id).addEventListener('click', () => showSetup(store.get(URL_KEY))));
+$('change3').addEventListener('click', () => showSetup(store.get(URL_KEY)));
+
+// ---------- entrar com Google ----------
+async function getJson(url, opts) {
+  const r = await fetch(url, Object.assign({ credentials: 'omit', redirect: 'follow' }, opts || {}));
+  return r.json();
+}
+function loadGis() {
+  return new Promise((resolve, reject) => {
+    if (window.google && google.accounts && google.accounts.id) { resolve(); return; }
+    const sc = document.createElement('script');
+    sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true;
+    sc.onload = () => resolve(); sc.onerror = () => reject(new Error('gis'));
+    document.head.appendChild(sc);
+  });
+}
+function loginHint(text, retry) { $('login-hint').textContent = text || ''; $('login-retry-box').hidden = !retry; }
+async function showLogin(msg) {
+  const url = store.get(URL_KEY);
+  show('login'); $('app').hidden = true; $('notice').hidden = true;
+  $('login-err').textContent = msg || ''; $('gbtn').innerHTML = '';
+  loginHint('Carregando o login do Google…');
+  let cid = '';
+  try { cid = (await getJson(url + '?cfg=1')).clientId || ''; }
+  catch (e) { loginHint('Não consegui falar com o painel. Confira a internet, se a implantação está como "Qualquer pessoa" e se o link está certo.', true); return; }
+  if (!cid) { loginHint('O login do Google ainda não foi configurado: no painel, Ajustes > Acessos > ID do cliente.', true); return; }
+  try { await loadGis(); } catch (e) { loginHint('Não consegui carregar o login do Google. Confira a internet.', true); return; }
+  const hint = store.get(EMAIL_KEY);
+  google.accounts.id.initialize(Object.assign({ client_id: cid, callback: onCredential, auto_select: true, cancel_on_tap_outside: false,
+                                                use_fedcm_for_prompt: true, itp_support: true, context: 'signin' }, hint ? { login_hint: hint } : {}));
+  google.accounts.id.renderButton($('gbtn'), { type: 'standard', theme: 'filled_blue', size: 'large', text: 'signin_with', shape: 'pill', locale: 'pt-BR', width: 280 });
+  google.accounts.id.prompt();
+  loginHint('Toque no botão e escolha a conta. Depois disso o app abre direto, sem pedir de novo.');
+}
+async function onCredential(resp) {
+  $('login-err').textContent = ''; loginHint('Conferindo com o Google…');
+  try {
+    const j = await getJson(store.get(URL_KEY), { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                                                  body: JSON.stringify({ acao: 'login', credential: resp && resp.credential }) });
+    if (!j.ok) { $('login-err').textContent = j.erro || 'Não foi possível entrar.'; loginHint('', true); return; }
+    store.set(SES_KEY, j.sessao); store.set(EMAIL_KEY, j.email);
+    start();
+  } catch (e) { $('login-err').textContent = 'Sem resposta do painel. Confira a internet e tente de novo.'; loginHint('', true); }
+}
+$('login-retry').addEventListener('click', () => showLogin());
+async function logout() {
+  const url = store.get(URL_KEY), ses = store.get(SES_KEY);
+  store.del(SES_KEY); store.del(MODE_KEY);
+  try { if (window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect(); } catch (e) {}
+  if (url && ses) { try { await getJson(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ acao: 'sair', sessao: ses }) }); } catch (e) {} }
+  showLogin();
+}
+['logout', 'logout2'].forEach(id => $(id).addEventListener('click', logout));
+
+/** O acesso do aparelho ainda vale? true/false; null quando não deu para conferir (aí tenta abrir assim mesmo). */
+async function checkSession(url, ses) {
+  try { return !!(await getJson(url + '?check=' + encodeURIComponent(ses))).ok; } catch (e) { return null; }
+}
 
 // ---------- painel dentro do app ----------
 let opened = false, waitTimer = null;
@@ -213,7 +291,7 @@ function openInside(url) {
   clearTimeout(waitTimer);
   waitTimer = setTimeout(() => {
     if (opened) return;
-    $('splash').hidden = true;          // mostra o que carregou (pode ser a tela de login do Google)
+    $('splash').hidden = true;          // mostra o que carregou
     $('notice').hidden = false;
   }, WAIT_MS);
 }
@@ -263,14 +341,21 @@ document.addEventListener('click', async e => {
 renderInstall();
 
 // ---------- início ----------
-function start() {
+async function start() {
   const url = store.get(URL_KEY);
   if (params.has('config') || !url) { showSetup(url); return; }
   if (navigator.onLine === false) { show('offline'); $('app').hidden = true; return; }
+  const ses = store.get(SES_KEY);
+  if (!ses) { showLogin(); return; }
+  show('splash'); $('splash-msg').textContent = 'Abrindo o painel…'; $('app').hidden = true;
+  if (await checkSession(url, ses) === false) {        // venceu, foi removido ou o e-mail saiu de Acessos
+    store.del(SES_KEY);
+    showLogin('O acesso deste aparelho venceu ou foi retirado. Entre de novo.');
+    return;
+  }
   if (store.get(MODE_KEY) === 'direct') {
     // no app instalado: vai direto uma vez por abertura; ao voltar, mostra o botão (sem ficar redirecionando).
     // numa aba do navegador: só mostra o botão, para dar tempo de instalar o app.
-    $('app').hidden = true;
     let first = true;
     try { first = !sessionStorage.getItem('didi:went'); } catch (e) {}
     show('direct');
