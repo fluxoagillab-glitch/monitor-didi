@@ -14,6 +14,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Monitor Didi">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
@@ -348,21 +350,29 @@ async function start() {
   const ses = store.get(SES_KEY);
   if (!ses) { showLogin(); return; }
   show('splash'); $('splash-msg').textContent = 'Abrindo o painel…'; $('app').hidden = true;
-  if (await checkSession(url, ses) === false) {        // venceu, foi removido ou o e-mail saiu de Acessos
+  const expired = () => {                              // venceu, foi removido ou o e-mail saiu de Acessos
     store.del(SES_KEY);
     showLogin('O acesso deste aparelho venceu ou foi retirado. Entre de novo.');
+  };
+  if (store.get(MODE_KEY) !== 'direct') {
+    // Painel e conferência do acesso ao mesmo tempo: uma espera a menos na abertura
+    openInside(url);
+    checkSession(url, ses).then(ok => {
+      if (ok !== false || store.get(SES_KEY) !== ses) return;
+      clearTimeout(waitTimer); $('app').src = 'about:blank';
+      expired();
+    });
     return;
   }
-  if (store.get(MODE_KEY) === 'direct') {
+  if (await checkSession(url, ses) === false) { expired(); return; }
+  {
     // no app instalado: vai direto uma vez por abertura; ao voltar, mostra o botão (sem ficar redirecionando).
     // numa aba do navegador: só mostra o botão, para dar tempo de instalar o app.
     let first = true;
     try { first = !sessionStorage.getItem('didi:went'); } catch (e) {}
     show('direct');
     if (first && STANDALONE) openDirect(url);
-    return;
   }
-  openInside(url);
 }
 start();
 
